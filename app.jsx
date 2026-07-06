@@ -857,6 +857,194 @@ function EntryDetail({ entry }) {
 
 // ---------- Relatório Mensal ----------
 
+// ---------- Relatório Mensal (padrão oficial, tabela) ----------
+
+const RDO_STYLE = `
+  .rdo-oficial { width: 100%; max-width: 900px; margin: 0 auto; background: white; }
+  .rdo-oficial table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+  .rdo-oficial td, .rdo-oficial th { border: 1px solid #000; padding: 2px 5px; font-size: 10px; vertical-align: top; font-family: Arial, sans-serif; color: #000; }
+  .rdo-oficial .lbl { font-weight: bold; font-size: 9px; }
+  .rdo-oficial .center { text-align: center; }
+  .rdo-oficial .titulo { font-size: 15px; font-weight: bold; text-align: center; }
+  .rdo-oficial .local-row { font-weight: bold; background: #f2f2f2; }
+  .rdo-oficial .day-block { margin-bottom: 28px; }
+  @media print {
+    .rdo-oficial .day-block { page-break-after: always; margin-bottom: 0; }
+  }
+`;
+
+function RdoDiaOficial({ entry, obraConfig, obra, prazo }) {
+  const totalDias = prazo?.totalDias ?? "";
+  const climaCond = entry.clima?.condicao || "";
+
+  return (
+    <div className="day-block">
+      <table>
+        <tbody>
+          <tr>
+            <td rowSpan={3} style={{ width: "18%" }} className="center">
+              {obraConfig.contratado || "CONTRATADO"}
+            </td>
+            <td colSpan={4} rowSpan={2} className="titulo">RELATÓRIO DIÁRIO DE OBRA</td>
+            <td className="lbl" style={{ width: "10%" }}>Data:</td>
+            <td style={{ width: "14%" }}>{formatDateBR(entry.data)}</td>
+          </tr>
+          <tr>
+            <td className="lbl">Dia da Semana:</td>
+            <td>{entry.diaSemana}</td>
+          </tr>
+          <tr>
+            <td className="lbl center">Contratado</td>
+            <td className="lbl center">Contrato Número</td>
+            <td colSpan={2} className="lbl center">Nome Obra</td>
+            <td colSpan={2} className="center" style={{ fontWeight: "bold" }}>{obra.nome}</td>
+          </tr>
+          <tr>
+            <td>{obraConfig.contratado}</td>
+            <td colSpan={2}>{obraConfig.numeroContrato}</td>
+            <td colSpan={2}></td>
+            <td colSpan={2}></td>
+          </tr>
+        </tbody>
+      </table>
+
+      <table style={{ marginTop: -1 }}>
+        <tbody>
+          <tr>
+            <td className="lbl" style={{ width: "10%" }}>Contrato</td>
+            <td className="lbl" style={{ width: "20%" }}>Prazo contratual - {totalDias} Dias</td>
+            <td className="lbl" style={{ width: "12%" }}>Dias decorridos</td>
+            <td className="lbl" style={{ width: "12%" }}>Dias restantes</td>
+          </tr>
+          <tr>
+            <td className="lbl">Início <span style={{ fontWeight: "normal" }}>{formatDateBR(obraConfig.dataInicio)}</span></td>
+            <td rowSpan={2}></td>
+            <td rowSpan={2} className="center" style={{ fontSize: 12 }}>{entry.diasDecorridos ?? ""}</td>
+            <td rowSpan={2} className="center" style={{ fontSize: 12 }}>{entry.diasRestantes ?? ""}</td>
+          </tr>
+          <tr>
+            <td className="lbl">Término</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <table style={{ marginTop: -1 }}>
+        <tbody>
+          <tr>
+            <td className="lbl" style={{ width: "65%" }}>Descrição dos Serviços Executado</td>
+            <td className="lbl" style={{ width: "35%" }}>Observações da Fiscalização</td>
+          </tr>
+          <tr>
+            <td style={{ padding: 0 }}>
+              <table style={{ border: "none" }}>
+                <tbody>
+                  {entry.locais?.map((l, i) => (
+                    <React.Fragment key={i}>
+                      {l.local && (
+                        <tr><td style={{ border: "none", borderBottom: "1px solid #000" }}>LOCAL : {l.local}</td></tr>
+                      )}
+                      {l.itens.map((item, ii) => (
+                        <tr key={ii}><td style={{ border: "none", borderBottom: "1px solid #000" }}>{item}</td></tr>
+                      ))}
+                    </React.Fragment>
+                  ))}
+                  {(!entry.locais || entry.locais.length === 0) && (
+                    <tr><td style={{ border: "none", borderBottom: "1px solid #000" }}>&nbsp;</td></tr>
+                  )}
+                </tbody>
+              </table>
+            </td>
+            <td>{entry.obsFiscalizacao}</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <table style={{ marginTop: -1 }}>
+        <tbody>
+          <tr>
+            <td className="lbl center" style={{ width: "17%" }}>Equipe propria</td>
+            <td className="lbl center" style={{ width: "8%" }}>Efetivo<br/>Total</td>
+            <td className="lbl center" style={{ width: "17%" }}>Observações</td>
+            <td className="lbl center" style={{ width: "17%" }}>Equipe Terceiro</td>
+            <td className="lbl center" style={{ width: "8%" }}>Efetivo<br/>Total</td>
+            <td className="lbl center" style={{ width: "17%" }}>Observações</td>
+          </tr>
+          {CARGOS_PADRAO.map((cargo) => (
+            <tr key={cargo}>
+              <td>{cargo}</td>
+              <td className="center">{entry.efetivo?.propria?.[cargo] || ""}</td>
+              <td></td>
+              <td>{cargo}</td>
+              <td className="center">{entry.efetivo?.terceiro?.[cargo] || ""}</td>
+              <td></td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+
+      <table style={{ marginTop: -1 }}>
+        <tbody>
+          <tr><td className="lbl center">Ocorrencia</td></tr>
+          <tr><td style={{ height: 40 }}>{entry.ocorrencias}</td></tr>
+        </tbody>
+      </table>
+
+      <table style={{ marginTop: -1 }}>
+        <tbody>
+          <tr>
+            <td className="lbl center" style={{ width: "38%" }}>Material Recebido</td>
+            <td className="lbl center" style={{ width: "12%" }}>Total</td>
+            <td className="lbl center" style={{ width: "38%" }}>Equipamentos</td>
+            <td className="lbl center" style={{ width: "12%" }}>Total</td>
+          </tr>
+          {obraConfig.itensCatalogo.map((item) => (
+            <tr key={item}>
+              <td>{item}</td>
+              <td className="center">{entry.materialRecebido?.[item] || "-"}</td>
+              <td>{item}</td>
+              <td className="center">{entry.equipamentos?.[item] || "-"}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+
+      <table style={{ marginTop: -1 }}>
+        <tbody>
+          <tr>
+            <td rowSpan={2} className="lbl center" style={{ width: "20%" }}>Temperatura °C<br/>{entry.clima?.temperatura || ""}</td>
+            <td colSpan={3} className="lbl center">Condições do tempo</td>
+            <td rowSpan={2} className="lbl center" style={{ width: "20%" }}>Umidade Relativa do Ar<br/>{entry.clima?.umidade ? entry.clima.umidade + "%" : ""}</td>
+          </tr>
+          <tr>
+            <td className="center" style={{ width: "20%" }}>Bom{climaCond === "Bom" ? " (X)" : ""}</td>
+            <td className="center" style={{ width: "20%" }}>Chuva{climaCond === "Chuva" ? " (X)" : ""}</td>
+            <td className="center" style={{ width: "20%" }}>Instavel{climaCond === "Instável" ? " (X)" : ""}</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <table style={{ marginTop: -1 }}>
+        <tbody>
+          <tr>
+            <td className="lbl center" style={{ width: "50%" }}>Contratada</td>
+            <td className="lbl center" style={{ width: "50%" }}>Contratante</td>
+          </tr>
+          <tr>
+            <td style={{ height: 45 }}>
+              Carimbo e Assinatura:
+              {entry.responsavelTecnico?.nome && <div>{entry.responsavelTecnico.nome}{entry.responsavelTecnico.crea ? " — CREA " + entry.responsavelTecnico.crea : ""}</div>}
+            </td>
+            <td style={{ height: 45 }}>
+              Carimbo e Assinatura:
+              {entry.fiscalizacaoResp?.nome && <div>{entry.fiscalizacaoResp.nome}{entry.fiscalizacaoResp.crea ? " — CREA " + entry.fiscalizacaoResp.crea : ""}</div>}
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
 function RelatorioMensal({ obra, obraConfig }) {
   const now = new Date();
   const defaultMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
@@ -865,55 +1053,26 @@ function RelatorioMensal({ obra, obraConfig }) {
 
   const [ano, mesNum] = mes.split("-");
   const mesNome = MESES[parseInt(mesNum, 10) - 1];
+  const prazo = obraConfig.dataInicio && obraConfig.prazoMeses ? calcularPrazo(obraConfig.dataInicio, obraConfig.prazoMeses, todayISO()) : null;
+  const entriesOrdenadas = entries.slice().sort((a, b) => (a.data > b.data ? 1 : a.data < b.data ? -1 : 0));
 
   return (
     <div>
+      <style>{RDO_STYLE}</style>
       <div className="no-print flex items-center gap-3 mb-5 flex-wrap">
         <input type="month" value={mes} onChange={(e) => setMes(e.target.value)} className="rdo-input px-3 py-2 text-sm mono" />
         <button onClick={() => window.print()} disabled={entries.length === 0} className="rdo-btn-primary px-3.5 py-2 text-sm">🖨 Imprimir / salvar PDF</button>
+        <span className="text-xs" style={{ color: "var(--ink-soft)" }}>{mesNome} de {ano} · {entries.length} registro(s)</span>
       </div>
+
       {loading && <div className="flex items-center gap-2 text-sm py-8 justify-center" style={{ color: "var(--ink-soft)" }}><Spin /> Montando relatório...</div>}
       {!loading && entries.length === 0 && <div className="rdo-card p-8"><EmptyState title="Sem dados para este mês" subtitle="Não há registros de RDO no período selecionado." /></div>}
+
       {!loading && entries.length > 0 && (
-        <div className="rdo-card p-6 sm:p-8">
-          <div className="flex items-start justify-between border-b pb-4 mb-5" style={{ borderColor: "var(--line)" }}>
-            <div>
-              <div className="display text-xl font-bold">RELATÓRIO MENSAL DE OBRA</div>
-              <div className="text-sm mt-0.5" style={{ color: "var(--ink-soft)" }}>{obra.nome}</div>
-              {obraConfig.contratado && <div className="text-xs" style={{ color: "var(--ink-soft)" }}>{obraConfig.contratado}{obraConfig.numeroContrato ? ` · Contrato nº ${obraConfig.numeroContrato}` : ""}</div>}
-              <div className="mono text-xs mt-1" style={{ color: "var(--ink-soft)" }}>{mesNome} de {ano}</div>
-            </div>
-            <div className="rdo-stamp mono text-[10px] shrink-0"><span>{entries.length} DIAS</span><span>REGISTRADOS</span></div>
-          </div>
-          <div className="space-y-0">
-            {entries.slice().reverse().map((entry) => (
-              <div key={entry.key} className="print-page pb-5 mb-5 border-b" style={{ borderColor: "var(--line)" }}>
-                <div className="flex items-center justify-between gap-2 mb-2 flex-wrap">
-                  <div className="flex items-center gap-2">
-                    <span className="mono text-sm font-semibold px-2 py-0.5" style={{ background: "var(--bg)" }}>{formatDateBR(entry.data)}</span>
-                    <span className="text-xs" style={{ color: "var(--ink-soft)" }}>{entry.diaSemana}</span>
-                    <span className="text-xs" style={{ color: "var(--ink-soft)" }}>👤 {entry.autor}</span>
-                  </div>
-                  {(entry.diasDecorridos != null) && (
-                    <span className="mono text-xs" style={{ color: "var(--ink-soft)" }}>Dia {entry.diasDecorridos} de contrato · {entry.diasRestantes} restantes</span>
-                  )}
-                </div>
-                <EntryDetail entry={entry} />
-                <div className="grid grid-cols-2 gap-6 mt-5 pt-4 border-t text-xs" style={{ borderColor: "var(--line)" }}>
-                  <div>
-                    <div className="mb-6" style={{ color: "var(--ink-soft)" }}>Contratada — Carimbo e assinatura</div>
-                    <div className="font-medium">{entry.responsavelTecnico?.nome || "—"}</div>
-                    {entry.responsavelTecnico?.crea && <div style={{ color: "var(--ink-soft)" }}>CREA {entry.responsavelTecnico.crea}</div>}
-                  </div>
-                  <div>
-                    <div className="mb-6" style={{ color: "var(--ink-soft)" }}>Contratante — Carimbo e assinatura</div>
-                    <div className="font-medium">{entry.fiscalizacaoResp?.nome || "—"}</div>
-                    {entry.fiscalizacaoResp?.crea && <div style={{ color: "var(--ink-soft)" }}>CREA {entry.fiscalizacaoResp.crea}</div>}
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
+        <div className="rdo-oficial">
+          {entriesOrdenadas.map((entry) => (
+            <RdoDiaOficial key={entry.key} entry={entry} obraConfig={obraConfig} obra={obra} prazo={prazo} />
+          ))}
         </div>
       )}
     </div>
