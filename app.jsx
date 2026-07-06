@@ -140,6 +140,7 @@ function defaultObraConfig() {
     fiscalizacao: { nome: "", crea: "" },
     efetivoPadrao: { propria: zeroMap(CARGOS_PADRAO), terceiro: zeroMap(CARGOS_PADRAO) },
     itensCatalogo: [...ITENS_PADRAO],
+    servicosCatalogo: [],
   };
 }
 
@@ -247,6 +248,7 @@ function RdoDigital() {
             terceiro: { ...base.efetivoPadrao.terceiro, ...(parsed.efetivoPadrao?.terceiro || {}) },
           },
           itensCatalogo: parsed.itensCatalogo?.length ? parsed.itensCatalogo : base.itensCatalogo,
+          servicosCatalogo: parsed.servicosCatalogo?.length ? parsed.servicosCatalogo : base.servicosCatalogo,
         });
       } else {
         setObraConfig(base);
@@ -375,10 +377,14 @@ function Header({ obras, selectedObra, setSelectedObra, showNovaObra, setShowNov
 
 function DadosContrato({ obraConfig, saveObraConfig }) {
   const [form, setForm] = useState(obraConfig);
+  const [servicosTexto, setServicosTexto] = useState((obraConfig.servicosCatalogo || []).join("\n"));
   const [salvando, setSalvando] = useState(false);
   const [salvo, setSalvo] = useState(false);
 
-  useEffect(() => setForm(obraConfig), [obraConfig]);
+  useEffect(() => {
+    setForm(obraConfig);
+    setServicosTexto((obraConfig.servicosCatalogo || []).join("\n"));
+  }, [obraConfig]);
 
   const upd = (field, value) => setForm((f) => ({ ...f, [field]: value }));
   const updPessoa = (grupo, field, value) => setForm((f) => ({ ...f, [grupo]: { ...f[grupo], [field]: value } }));
@@ -388,7 +394,9 @@ function DadosContrato({ obraConfig, saveObraConfig }) {
 
   const salvar = async () => {
     setSalvando(true);
-    await saveObraConfig(form);
+    const servicosCatalogo = servicosTexto.split("\n").map((s) => s.trim()).filter(Boolean);
+    const novaConfig = { ...form, servicosCatalogo };
+    await saveObraConfig(novaConfig);
     setSalvando(false);
     setSalvo(true);
     setTimeout(() => setSalvo(false), 2500);
@@ -443,6 +451,16 @@ function DadosContrato({ obraConfig, saveObraConfig }) {
         </table>
       </div>
 
+      <SectionTitle>Lista padrão de serviços executados</SectionTitle>
+      <p className="text-xs mb-2" style={{ color: "var(--ink-soft)" }}>Um serviço por linha. Essa lista aparece como checklist na hora de registrar o RDO do dia, pra marcar em vez de digitar.</p>
+      <textarea
+        value={servicosTexto}
+        onChange={(e) => setServicosTexto(e.target.value)}
+        rows={8}
+        placeholder={"Ex:\nAssentamento de piso cerâmico\nAplicação de massa corrida\nInstalação de louças e metais"}
+        className="rdo-input w-full px-3 py-2 text-sm mb-5 mono"
+      />
+
       <div className="flex items-center gap-3 mt-5">
         <button onClick={salvar} disabled={salvando} className="rdo-btn-primary px-4 py-2.5 text-sm flex items-center gap-2">
           {salvando && <Spin />} Salvar dados do contrato
@@ -484,6 +502,16 @@ function NovoRegistro({ obra, obraConfig, autorNome, setAutorNome }) {
   const removeItem = (li, ii) => setLocais((prev) => prev.map((l, idx) => (idx === li ? { ...l, itens: l.itens.filter((_, iidx) => iidx !== ii) } : l)));
   const addLocal = () => setLocais((prev) => [...prev, { local: "", itens: [""] }]);
   const removeLocal = (i) => setLocais((prev) => prev.filter((_, idx) => idx !== i));
+
+  const toggleServicoCatalogo = (li, servico) => {
+    setLocais((prev) => prev.map((l, idx) => {
+      if (idx !== li) return l;
+      const semVazios = l.itens.filter((it) => it.trim().length > 0);
+      const jaTem = semVazios.includes(servico);
+      const novosItens = jaTem ? semVazios.filter((it) => it !== servico) : [...semVazios, servico];
+      return { ...l, itens: novosItens.length > 0 ? novosItens : [""] };
+    }));
+  };
 
   const updEfetivo = (tipo, cargo, value) => setEfetivo((prev) => ({ ...prev, [tipo]: { ...prev[tipo], [cargo]: Number(value) || 0 } }));
   const updCatalogo = (setter, item, value) => setter((prev) => ({ ...prev, [item]: Number(value) || 0 }));
@@ -573,6 +601,24 @@ function NovoRegistro({ obra, obraConfig, autorNome, setAutorNome }) {
               ))}
             </div>
             <button onClick={() => addItem(li)} className="mt-1.5 text-xs font-semibold" style={{ color: "var(--accent)" }}>+ Adicionar serviço</button>
+
+            {obraConfig.servicosCatalogo?.length > 0 && (
+              <div className="mt-2.5 p-2.5" style={{ background: "var(--bg)" }}>
+                <div className="text-xs font-semibold mb-1.5" style={{ color: "var(--ink-soft)" }}>Marcar da lista padrão:</div>
+                <div className="space-y-1">
+                  {obraConfig.servicosCatalogo.map((servico) => (
+                    <label key={servico} className="flex items-center gap-2 text-sm cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={l.itens.includes(servico)}
+                        onChange={() => toggleServicoCatalogo(li, servico)}
+                      />
+                      {servico}
+                    </label>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         ))}
       </div>
