@@ -471,6 +471,34 @@ function DadosContrato({ obraConfig, saveObraConfig }) {
   );
 }
 
+function ChecklistServicos({ catalogo, itensSelecionados, onToggle }) {
+  const [busca, setBusca] = useState("");
+  const buscaLower = busca.toLowerCase();
+  const filtrados = catalogo.filter((s) => itensSelecionados.includes(s) || s.toLowerCase().includes(buscaLower));
+
+  return (
+    <div className="mt-2.5 p-2.5" style={{ background: "var(--bg)" }}>
+      <div className="text-xs font-semibold mb-1.5" style={{ color: "var(--ink-soft)" }}>Marcar da lista padrão:</div>
+      <input
+        type="text"
+        value={busca}
+        onChange={(e) => setBusca(e.target.value)}
+        placeholder="Buscar serviço..."
+        className="rdo-input w-full px-2.5 py-1.5 text-sm mb-2"
+      />
+      <div className="space-y-1 max-h-52 overflow-y-auto pr-1">
+        {filtrados.length === 0 && <div className="text-xs py-1" style={{ color: "var(--ink-soft)" }}>Nenhum serviço encontrado.</div>}
+        {filtrados.map((servico) => (
+          <label key={servico} className="flex items-center gap-2 text-sm cursor-pointer">
+            <input type="checkbox" checked={itensSelecionados.includes(servico)} onChange={() => onToggle(servico)} />
+            {servico}
+          </label>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 // ---------- Novo Registro ----------
 
 function NovoRegistro({ obra, obraConfig, autorNome, setAutorNome }) {
@@ -603,21 +631,11 @@ function NovoRegistro({ obra, obraConfig, autorNome, setAutorNome }) {
             <button onClick={() => addItem(li)} className="mt-1.5 text-xs font-semibold" style={{ color: "var(--accent)" }}>+ Adicionar serviço</button>
 
             {obraConfig.servicosCatalogo?.length > 0 && (
-              <div className="mt-2.5 p-2.5" style={{ background: "var(--bg)" }}>
-                <div className="text-xs font-semibold mb-1.5" style={{ color: "var(--ink-soft)" }}>Marcar da lista padrão:</div>
-                <div className="space-y-1">
-                  {obraConfig.servicosCatalogo.map((servico) => (
-                    <label key={servico} className="flex items-center gap-2 text-sm cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={l.itens.includes(servico)}
-                        onChange={() => toggleServicoCatalogo(li, servico)}
-                      />
-                      {servico}
-                    </label>
-                  ))}
-                </div>
-              </div>
+              <ChecklistServicos
+                catalogo={obraConfig.servicosCatalogo}
+                itensSelecionados={l.itens}
+                onToggle={(servico) => toggleServicoCatalogo(li, servico)}
+              />
             )}
           </div>
         ))}
