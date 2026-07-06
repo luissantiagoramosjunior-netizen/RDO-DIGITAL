@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
+<title>RDO Digital</title>
+<meta name="theme-color" content="#1B2735" />
+<link rel="manifest" href="manifest.json" />
+<link rel="icon" href="icon-192.png" />
+<link rel="apple-touch-icon" href="icon-192.png" />
+
+<!-- Tailwind (utilitário via CDN, sem build step) -->
+<script src="https://cdn.tailwindcss.com"></script>
+
+<!-- React -->
+<script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js" crossorigin></script>
+
+<!-- Firebase (compat, mesma sintaxe do v8, simples de usar sem bundler) -->
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+
+<style>
+  html, body, #root { height: 100%; margin: 0; }
+  @import url('https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
+</style>
+</head>
+<body>
+  <div id="root"></div>
+
+  <script src="firebase-config.js"></script>
+  <script>
+    fetch("app.jsx")
+      .then((r) => {
+        if (!r.ok) throw new Error("Não foi possível carregar app.jsx (HTTP " + r.status + ")");
+        return r.text();
+      })
+      .then((code) => {
+        const output = Babel.transform(code, {
+          presets: [["react", { runtime: "classic" }]],
+          filename: "app.jsx",
+        }).code;
+        const script = document.createElement("script");
+        script.text = output;
+        document.body.appendChild(script);
+      })
+      .catch((err) => {
+        document.getElementById("root").innerHTML =
+          '<div style="padding:24px;font-family:sans-serif;color:#B33B2E">Erro ao carregar o aplicativo: ' + err.message + '</div>';
+      });
+  </script>
+
+  <script>
+    if ("serviceWorker" in navigator) {
+      window.addEventListener("load", () => {
+        navigator.serviceWorker.register("sw.js").catch(() => {});
+      });
+    }
+  </script>
+</body>
+</html>
