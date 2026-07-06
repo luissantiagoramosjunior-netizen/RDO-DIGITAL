@@ -49,6 +49,10 @@ async function fsSaveEntry(id, entry) {
   if (!db) return false;
   try { await db.collection("entries").doc(id).set(entry); return true; } catch (e) { return false; }
 }
+async function fsDeleteEntry(id) {
+  if (!db) return false;
+  try { await db.collection("entries").doc(id).delete(); return true; } catch (e) { return false; }
+}
 async function fsListEntries(obraSlug) {
   if (!db) return [];
   try {
@@ -765,8 +769,21 @@ function useEntries(obra, monthFilter) {
 
 function Historico({ obra }) {
   const [mesFiltro, setMesFiltro] = useState("");
-  const { entries, loading } = useEntries(obra, mesFiltro);
+  const { entries, loading, reload } = useEntries(obra, mesFiltro);
   const [expandido, setExpandido] = useState(null);
+  const [excluindo, setExcluindo] = useState(null);
+  const [confirmando, setConfirmando] = useState(null);
+
+  const excluirRegistro = async (key) => {
+    setExcluindo(key);
+    const ok = await fsDeleteEntry(key);
+    setExcluindo(null);
+    setConfirmando(null);
+    if (ok) {
+      if (expandido === key) setExpandido(null);
+      reload();
+    }
+  };
 
   return (
     <div>
@@ -787,7 +804,36 @@ function Historico({ obra }) {
               </div>
               <span>{expandido === entry.key ? "▾" : "▸"}</span>
             </button>
-            {expandido === entry.key && <div className="px-4 pb-4"><EntryDetail entry={entry} /></div>}
+            {expandido === entry.key && (
+              <div className="px-4 pb-4">
+                <EntryDetail entry={entry} />
+                <div className="mt-4 pt-3 border-t flex items-center gap-3" style={{ borderColor: "var(--line)" }}>
+                  {confirmando !== entry.key && (
+                    <button
+                      onClick={() => setConfirmando(entry.key)}
+                      className="text-xs font-semibold flex items-center gap-1"
+                      style={{ color: "var(--danger)" }}
+                    >
+                      🗑 Excluir registro
+                    </button>
+                  )}
+                  {confirmando === entry.key && (
+                    <>
+                      <span className="text-xs" style={{ color: "var(--danger)" }}>Excluir este registro para todos da equipe? Não é possível desfazer.</span>
+                      <button
+                        onClick={() => excluirRegistro(entry.key)}
+                        disabled={excluindo === entry.key}
+                        className="text-xs font-semibold px-2.5 py-1"
+                        style={{ background: "var(--danger)", color: "white" }}
+                      >
+                        {excluindo === entry.key ? "Excluindo..." : "Sim, excluir"}
+                      </button>
+                      <button onClick={() => setConfirmando(null)} className="rdo-btn-outline text-xs px-2.5 py-1">Cancelar</button>
+                    </>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
         ))}
       </div>
@@ -873,6 +919,20 @@ const RDO_STYLE = `
   }
 `;
 
+const LINHAS_DESCRICAO_PADRAO = 30;
+const ALTURA_LINHA_DESCRICAO = 14;
+
+function montarLinhasDescricao(locais) {
+  const linhas = [];
+  (locais || []).forEach((l) => {
+    if (l.local) linhas.push({ tipo: "local", texto: l.local });
+    l.itens.forEach((item) => linhas.push({ tipo: "item", texto: item }));
+  });
+  const total = Math.max(LINHAS_DESCRICAO_PADRAO, linhas.length);
+  while (linhas.length < total) linhas.push({ tipo: "vazio", texto: "" });
+  return linhas;
+}
+
 function RdoDiaOficial({ entry, obraConfig, obra, prazo }) {
   const totalDias = prazo?.totalDias ?? "";
   const climaCond = entry.clima?.condicao || "";
@@ -883,7 +943,7 @@ function RdoDiaOficial({ entry, obraConfig, obra, prazo }) {
         <tbody>
           <tr>
             <td rowSpan={3} style={{ width: "18%" }} className="center">
-              {obraConfig.contratado || "CONTRATADO"}
+              <img src="logo.png" alt="Logo" style={{ maxWidth: "90%", maxHeight: 70, height: "auto" }} />
             </td>
             <td colSpan={4} rowSpan={2} className="titulo">RELATÓRIO DIÁRIO DE OBRA</td>
             <td className="lbl" style={{ width: "10%" }}>Data:</td>
@@ -938,19 +998,21 @@ function RdoDiaOficial({ entry, obraConfig, obra, prazo }) {
             <td style={{ padding: 0 }}>
               <table style={{ border: "none" }}>
                 <tbody>
-                  {entry.locais?.map((l, i) => (
-                    <React.Fragment key={i}>
-                      {l.local && (
-                        <tr><td style={{ border: "none", borderBottom: "1px solid #000" }}>LOCAL : {l.local}</td></tr>
-                      )}
-                      {l.itens.map((item, ii) => (
-                        <tr key={ii}><td style={{ border: "none", borderBottom: "1px solid #000" }}>{item}</td></tr>
-                      ))}
-                    </React.Fragment>
+                  {montarLinhasDescricao(entry.locais).map((linha, i) => (
+                    <tr key={i} style={{ height: ALTURA_LINHA_DESCRICAO }}>
+                      <td
+                        style={{
+                          border: "none",
+                          borderBottom: "1px solid #000",
+                          height: ALTURA_LINHA_DESCRICAO,
+                          fontWeight: linha.tipo === "local" ? "bold" : "normal",
+                          background: linha.tipo === "local" ? "#f2f2f2" : "transparent",
+                        }}
+                      >
+                        {linha.tipo === "local" ? `LOCAL : ${linha.texto}` : linha.texto || "\u00A0"}
+                      </td>
+                    </tr>
                   ))}
-                  {(!entry.locais || entry.locais.length === 0) && (
-                    <tr><td style={{ border: "none", borderBottom: "1px solid #000" }}>&nbsp;</td></tr>
-                  )}
                 </tbody>
               </table>
             </td>
