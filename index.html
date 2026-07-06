@@ -30,7 +30,26 @@
   <div id="root"></div>
 
   <script src="firebase-config.js"></script>
-  <script type="text/babel" data-presets="react" src="app.jsx"></script>
+  <script>
+    fetch("app.jsx")
+      .then((r) => {
+        if (!r.ok) throw new Error("Não foi possível carregar app.jsx (HTTP " + r.status + ")");
+        return r.text();
+      })
+      .then((code) => {
+        const output = Babel.transform(code, {
+          presets: [["react", { runtime: "classic" }]],
+          filename: "app.jsx",
+        }).code;
+        const script = document.createElement("script");
+        script.text = output;
+        document.body.appendChild(script);
+      })
+      .catch((err) => {
+        document.getElementById("root").innerHTML =
+          '<div style="padding:24px;font-family:sans-serif;color:#B33B2E">Erro ao carregar o aplicativo: ' + err.message + '</div>';
+      });
+  </script>
 
   <script>
     if ("serviceWorker" in navigator) {
