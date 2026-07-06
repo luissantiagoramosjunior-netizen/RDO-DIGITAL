@@ -942,7 +942,7 @@ function RdoDiaOficial({ entry, obraConfig, obra, prazo }) {
       <table>
         <tbody>
           <tr>
-            <td rowSpan={3} style={{ width: "18%" }} className="center">
+            <td rowSpan={4} style={{ width: "18%" }} className="center">
               <img src="logo.png" alt="Logo" style={{ maxWidth: "90%", maxHeight: 70, height: "auto" }} />
             </td>
             <td colSpan={4} rowSpan={2} className="titulo">RELATÓRIO DIÁRIO DE OBRA</td>
@@ -956,14 +956,12 @@ function RdoDiaOficial({ entry, obraConfig, obra, prazo }) {
           <tr>
             <td className="lbl center">Contratado</td>
             <td className="lbl center">Contrato Número</td>
-            <td colSpan={2} className="lbl center">Nome Obra</td>
-            <td colSpan={2} className="center" style={{ fontWeight: "bold" }}>{obra.nome}</td>
+            <td colSpan={4} className="lbl center">Nome Obra</td>
           </tr>
           <tr>
             <td>{obraConfig.contratado}</td>
-            <td colSpan={2}>{obraConfig.numeroContrato}</td>
-            <td colSpan={2}></td>
-            <td colSpan={2}></td>
+            <td>{obraConfig.numeroContrato}</td>
+            <td colSpan={4} className="center" style={{ fontWeight: "bold" }}>{obra.nome}</td>
           </tr>
         </tbody>
       </table>
