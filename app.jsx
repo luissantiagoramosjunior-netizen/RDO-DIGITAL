@@ -4,6 +4,15 @@ const { useState, useEffect, useCallback, useRef } = React;
 
 const CARGOS_PADRAO = ["Engenheiro", "Tec. Planejamento", "Supervisor", "Téc Segurança", "Gerente de Contrato", "Gerente de Obra"];
 const ITENS_PADRAO = ["Automóvel de Passeio", "Automóvel Coletivo (Kombi)", "Pickape", "Ônibus - Van", "Caminhão munck", "Guindaste", "Plataforma móvel para jato"];
+const GRUPOS_SERVICO = [
+  "SERVIÇOS DE CANTEIRO",
+  "ADMINISTRAÇÃO LOCAL DA OBRA",
+  "DEMOLIÇÕES E REMOÇÕES",
+  "COBERTURA",
+  "INSTALAÇÃO HIDROSSANITÁRIAS",
+  "REVESTIMENTO DE PISOS, PAREDES E FORROS",
+  "OUTROS",
+];
 const DIAS_SEMANA = ["DOMINGO", "SEGUNDA-FEIRA", "TERÇA-FEIRA", "QUARTA-FEIRA", "QUINTA-FEIRA", "SEXTA-FEIRA", "SÁBADO"];
 const MESES = ["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"];
 
@@ -52,6 +61,21 @@ async function fsSaveEntry(id, entry) {
 async function fsDeleteEntry(id) {
   if (!db) return false;
   try { await db.collection("entries").doc(id).delete(); return true; } catch (e) { return false; }
+}
+async function fsSaveFoto(id, foto) {
+  if (!db) return false;
+  try { await db.collection("fotos").doc(id).set(foto); return true; } catch (e) { return false; }
+}
+async function fsListFotos(obraSlug) {
+  if (!db) return [];
+  try {
+    const snap = await db.collection("fotos").where("obraSlug", "==", obraSlug).get();
+    return snap.docs.map((d) => ({ key: d.id, ...d.data() }));
+  } catch (e) { return []; }
+}
+async function fsDeleteFoto(id) {
+  if (!db) return false;
+  try { await db.collection("fotos").doc(id).delete(); return true; } catch (e) { return false; }
 }
 async function fsListEntries(obraSlug) {
   if (!db) return [];
@@ -145,6 +169,7 @@ function defaultObraConfig() {
     efetivoPadrao: { propria: zeroMap(CARGOS_PADRAO), terceiro: zeroMap(CARGOS_PADRAO) },
     itensCatalogo: [...ITENS_PADRAO],
     servicosCatalogo: [],
+    fotografico: { imovel: "", demandante: "", endereco: "", empresa: "", respTecnico: "", crea: "" },
   };
 }
 
@@ -253,6 +278,7 @@ function RdoDigital() {
           },
           itensCatalogo: parsed.itensCatalogo?.length ? parsed.itensCatalogo : base.itensCatalogo,
           servicosCatalogo: parsed.servicosCatalogo?.length ? parsed.servicosCatalogo : base.servicosCatalogo,
+          fotografico: { ...base.fotografico, ...(parsed.fotografico || {}) },
         });
       } else {
         setObraConfig(base);
@@ -319,6 +345,7 @@ function RdoDigital() {
               <TabButton label="Registrar" emoji="📋" active={activeTab === "novo"} onClick={() => setActiveTab("novo")} />
               <TabButton label="Histórico" emoji="☑" active={activeTab === "historico"} onClick={() => setActiveTab("historico")} />
               <TabButton label="Relatório mensal" emoji="📄" active={activeTab === "relatorio"} onClick={() => setActiveTab("relatorio")} />
+              <TabButton label="Rel. fotográfico" emoji="📷" active={activeTab === "fotografico"} onClick={() => setActiveTab("fotografico")} />
               <TabButton label="Dados do contrato" emoji="⚙" active={activeTab === "contrato"} onClick={() => setActiveTab("contrato")} />
             </nav>
 
@@ -327,6 +354,7 @@ function RdoDigital() {
             )}
             {activeTab === "historico" && <Historico obra={obraAtual} />}
             {activeTab === "relatorio" && <RelatorioMensal obra={obraAtual} obraConfig={obraConfig} />}
+            {activeTab === "fotografico" && configLoaded && <RelatorioFotografico obra={obraAtual} obraConfig={obraConfig} />}
             {activeTab === "contrato" && configLoaded && (
               <DadosContrato obraConfig={obraConfig} saveObraConfig={saveObraConfig} />
             )}
@@ -393,6 +421,7 @@ function DadosContrato({ obraConfig, saveObraConfig }) {
   const upd = (field, value) => setForm((f) => ({ ...f, [field]: value }));
   const updPessoa = (grupo, field, value) => setForm((f) => ({ ...f, [grupo]: { ...f[grupo], [field]: value } }));
   const updEfetivo = (tipo, cargo, value) => setForm((f) => ({ ...f, efetivoPadrao: { ...f.efetivoPadrao, [tipo]: { ...f.efetivoPadrao[tipo], [cargo]: Number(value) || 0 } } }));
+  const updFoto = (campo, value) => setForm((f) => ({ ...f, fotografico: { ...(f.fotografico || {}), [campo]: value } }));
 
   const prazo = form.dataInicio && form.prazoMeses ? calcularPrazo(form.dataInicio, form.prazoMeses, todayISO()) : null;
 
@@ -464,6 +493,16 @@ function DadosContrato({ obraConfig, saveObraConfig }) {
         placeholder={"Ex:\nAssentamento de piso cerâmico\nAplicação de massa corrida\nInstalação de louças e metais"}
         className="rdo-input w-full px-3 py-2 text-sm mb-5 mono"
       />
+
+      <SectionTitle>Dados do relatório fotográfico (cabeçalho)</SectionTitle>
+      <div className="grid sm:grid-cols-2 gap-x-4">
+        <Field label="Imóvel público"><input value={form.fotografico?.imovel || ""} onChange={(e) => updFoto("imovel", e.target.value)} className="rdo-input w-full px-3 py-2 text-sm" /></Field>
+        <Field label="Demandante (Secretaria)"><input value={form.fotografico?.demandante || ""} onChange={(e) => updFoto("demandante", e.target.value)} className="rdo-input w-full px-3 py-2 text-sm" /></Field>
+        <Field label="Endereço"><input value={form.fotografico?.endereco || ""} onChange={(e) => updFoto("endereco", e.target.value)} className="rdo-input w-full px-3 py-2 text-sm" /></Field>
+        <Field label="Empresa contratada"><input value={form.fotografico?.empresa || ""} onChange={(e) => updFoto("empresa", e.target.value)} className="rdo-input w-full px-3 py-2 text-sm" /></Field>
+        <Field label="Responsável técnico"><input value={form.fotografico?.respTecnico || ""} onChange={(e) => updFoto("respTecnico", e.target.value)} className="rdo-input w-full px-3 py-2 text-sm" /></Field>
+        <Field label="CREA (resp. técnico)"><input value={form.fotografico?.crea || ""} onChange={(e) => updFoto("crea", e.target.value)} className="rdo-input w-full px-3 py-2 text-sm" /></Field>
+      </div>
 
       <div className="flex items-center gap-3 mt-5">
         <button onClick={salvar} disabled={salvando} className="rdo-btn-primary px-4 py-2.5 text-sm flex items-center gap-2">
@@ -901,9 +940,271 @@ function EntryDetail({ entry }) {
   );
 }
 
+// ---------- Relatório Fotográfico ----------
+
+function GerenciarFotos({ obra, obraConfig }) {
+  const [fotos, setFotos] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [local, setLocal] = useState("");
+  const [servico, setServico] = useState("");
+  const [grupo, setGrupo] = useState(GRUPOS_SERVICO[0]);
+  const [data, setData] = useState(todayISO());
+  const [imgAtual, setImgAtual] = useState(null);
+  const [compressing, setCompressing] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [erro, setErro] = useState("");
+  const [buscaServico, setBuscaServico] = useState("");
+  const cameraRef = useRef(null);
+  const galeriaRef = useRef(null);
+
+  const reload = useCallback(async () => {
+    setLoading(true);
+    const lista = await fsListFotos(obra.slug);
+    lista.sort((a, b) => (a.criadoEm < b.criadoEm ? 1 : -1));
+    setFotos(lista);
+    setLoading(false);
+  }, [obra.slug]);
+
+  useEffect(() => { reload(); }, [reload]);
+
+  const handleImg = async (e) => {
+    const file = (e.target.files || [])[0];
+    const inputEl = e.target;
+    if (!file) return;
+    setCompressing(true); setErro("");
+    try {
+      const dataUrl = await compressImage(file, 1000, 0.6);
+      setImgAtual(dataUrl);
+    } catch (e) { setErro("Não foi possível processar a imagem."); }
+    setCompressing(false);
+    if (inputEl) inputEl.value = "";
+  };
+
+  const podeSalvar = imgAtual && local.trim() && servico.trim();
+
+  const salvarFoto = async () => {
+    if (!podeSalvar) return;
+    setSaving(true); setErro("");
+    const id = `${obra.slug}__foto__${Date.now()}`;
+    const foto = {
+      obraSlug: obra.slug, data, local: local.trim(), servico: servico.trim(),
+      grupo, imagem: imgAtual, criadoEm: new Date().toISOString(),
+    };
+    const ok = await fsSaveFoto(id, foto);
+    setSaving(false);
+    if (ok) {
+      setImgAtual(null); setLocal(""); setServico(""); setBuscaServico("");
+      reload();
+    } else {
+      setErro("Não foi possível salvar. Se a imagem for muito grande, tente outra foto.");
+    }
+  };
+
+  const excluirFoto = async (key) => {
+    await fsDeleteFoto(key);
+    reload();
+  };
+
+  const catalogo = obraConfig.servicosCatalogo || [];
+  const filtrados = catalogo.filter((s) => s.toLowerCase().includes(buscaServico.toLowerCase()));
+
+  return (
+    <div className="rdo-card p-5 sm:p-6">
+      <SectionTitle>Adicionar foto ao relatório</SectionTitle>
+
+      <div className="grid sm:grid-cols-2 gap-x-4">
+        <Field label="Data" icon="📅">
+          <input type="date" value={data} onChange={(e) => setData(e.target.value)} className="rdo-input px-3 py-2 text-sm mono" />
+        </Field>
+        <Field label="Grupo do serviço">
+          <select value={grupo} onChange={(e) => setGrupo(e.target.value)} className="rdo-input w-full px-3 py-2 text-sm">
+            {GRUPOS_SERVICO.map((g) => <option key={g} value={g}>{g}</option>)}
+          </select>
+        </Field>
+      </div>
+
+      <Field label="Local" icon="📍">
+        <input value={local} onChange={(e) => setLocal(e.target.value)} placeholder="Ex: TELHADO BLOCO ESCOLAR" className="rdo-input w-full px-3 py-2 text-sm uppercase" />
+      </Field>
+
+      <Field label="Serviço executado">
+        <textarea value={servico} onChange={(e) => setServico(e.target.value)} rows={3} placeholder="Descrição do serviço mostrado na foto" className="rdo-input w-full px-3 py-2 text-sm" />
+      </Field>
+
+      {catalogo.length > 0 && (
+        <div className="mb-4 p-2.5" style={{ background: "var(--bg)" }}>
+          <div className="text-xs font-semibold mb-1.5" style={{ color: "var(--ink-soft)" }}>Puxar da lista padrão:</div>
+          <input type="text" value={buscaServico} onChange={(e) => setBuscaServico(e.target.value)} placeholder="Buscar serviço..." className="rdo-input w-full px-2.5 py-1.5 text-sm mb-2" />
+          <div className="space-y-1 max-h-40 overflow-y-auto pr-1">
+            {filtrados.map((s) => (
+              <button key={s} onClick={() => setServico(s)} className="block text-left text-sm w-full hover:underline" style={{ color: "var(--accent)" }}>+ {s}</button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <Field label="Imagem" icon="📷">
+        <input ref={cameraRef} type="file" accept="image/*" capture="environment" onChange={handleImg} className="hidden" />
+        <input ref={galeriaRef} type="file" accept="image/*" onChange={handleImg} className="hidden" />
+        <div className="flex gap-2 flex-wrap">
+          <button type="button" onClick={() => cameraRef.current?.click()} className="rdo-btn-primary text-sm px-3.5 py-2">📷 Tirar foto</button>
+          <button type="button" onClick={() => galeriaRef.current?.click()} className="rdo-btn-outline text-sm px-3.5 py-2">Escolher da galeria</button>
+        </div>
+        {compressing && <div className="flex items-center gap-1.5 text-xs mt-2" style={{ color: "var(--ink-soft)" }}><Spin /> Processando...</div>}
+        {imgAtual && <img src={imgAtual} alt="" className="mt-3 w-40 h-32 object-cover border" style={{ borderColor: "var(--line)" }} />}
+      </Field>
+
+      {erro && <div className="text-xs mb-3 px-3 py-2" style={{ background: "rgba(179,59,46,0.08)", color: "var(--danger)" }}>{erro}</div>}
+
+      <button onClick={salvarFoto} disabled={!podeSalvar || saving} className="rdo-btn-primary px-4 py-2.5 text-sm flex items-center gap-2">
+        {saving && <Spin />} Adicionar foto
+      </button>
+      {!podeSalvar && <div className="text-xs mt-2" style={{ color: "var(--ink-soft)" }}>Preencha local, serviço e escolha uma imagem.</div>}
+
+      <div className="mt-6">
+        <SectionTitle>Fotos cadastradas ({fotos.length})</SectionTitle>
+        {loading && <div className="flex items-center gap-2 text-sm py-4" style={{ color: "var(--ink-soft)" }}><Spin /> Carregando...</div>}
+        {!loading && fotos.length === 0 && <p className="text-sm" style={{ color: "var(--ink-soft)" }}>Nenhuma foto cadastrada ainda.</p>}
+        <div className="space-y-2">
+          {fotos.map((f) => (
+            <div key={f.key} className="flex gap-3 items-start border p-2" style={{ borderColor: "var(--line)" }}>
+              <img src={f.imagem} alt="" className="w-20 h-16 object-cover shrink-0" />
+              <div className="flex-1 text-xs">
+                <div className="mono" style={{ color: "var(--ink-soft)" }}>{formatDateBR(f.data)} · {f.grupo}</div>
+                <div className="font-semibold">📍 {f.local}</div>
+                <div>{f.servico}</div>
+              </div>
+              <button onClick={() => excluirFoto(f.key)} className="text-xs shrink-0" style={{ color: "var(--danger)" }}>🗑</button>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+const FOTO_STYLE = `
+  .fotorel { width: 100%; max-width: 900px; margin: 0 auto; background: white; font-family: Arial, sans-serif; color: #000; }
+  .fotorel .titulo-rel { text-align: center; font-size: 16px; font-weight: bold; border: 1px solid #000; padding: 6px; }
+  .fotorel table { width: 100%; border-collapse: collapse; }
+  .fotorel td { border: 1px solid #000; padding: 5px 8px; font-size: 11px; vertical-align: top; }
+  .fotorel .cab-lbl { font-weight: bold; width: 28%; }
+  .fotorel .grupo-tit { font-weight: bold; font-size: 11px; margin-top: 6px; }
+  .fotorel .grupo-desc { font-size: 11px; margin-bottom: 4px; }
+  .fotorel .foto-bloco { display: flex; border: 1px solid #000; margin-top: -1px; }
+  .fotorel .foto-img { width: 55%; border-right: 1px solid #000; padding: 6px; box-sizing: border-box; }
+  .fotorel .foto-img img { width: 100%; height: auto; display: block; }
+  .fotorel .foto-info { width: 45%; padding: 8px; font-size: 11px; box-sizing: border-box; }
+  .fotorel .foto-num { font-weight: bold; margin-bottom: 6px; }
+  .fotorel .foto-info .lbl { font-weight: bold; }
+  @media print {
+    .foto-bloco { page-break-inside: avoid; }
+  }
+`;
+
+function RelatorioFotografico({ obra, obraConfig }) {
+  const now = new Date();
+  const defaultMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+  const [aba, setAba] = useState("gerenciar");
+  const [mes, setMes] = useState(defaultMonth);
+  const [fotos, setFotos] = useState([]);
+  const [loading, setLoading] = useState(false);
+
+  const carregarFotos = useCallback(async () => {
+    setLoading(true);
+    const lista = await fsListFotos(obra.slug);
+    const filtradas = lista.filter((f) => f.data?.slice(0, 7) === mes);
+    filtradas.sort((a, b) => (a.criadoEm > b.criadoEm ? 1 : -1));
+    setFotos(filtradas);
+    setLoading(false);
+  }, [obra.slug, mes]);
+
+  useEffect(() => { if (aba === "gerar") carregarFotos(); }, [aba, carregarFotos]);
+
+  const fc = obraConfig.fotografico || {};
+  const [ano, mesNum] = mes.split("-");
+  const mesNome = MESES[parseInt(mesNum, 10) - 1];
+
+  // agrupa serviços por grupo (resumo do topo, sem repetição)
+  const resumoPorGrupo = {};
+  fotos.forEach((f) => {
+    const g = f.grupo || "OUTROS";
+    if (!resumoPorGrupo[g]) resumoPorGrupo[g] = new Set();
+    resumoPorGrupo[g].add(f.servico);
+  });
+
+  return (
+    <div>
+      <div className="no-print flex gap-3 mb-5 flex-wrap items-center">
+        <button onClick={() => setAba("gerenciar")} className={`rdo-seg ${aba === "gerenciar" ? "active" : ""}`}>Gerenciar fotos</button>
+        <button onClick={() => setAba("gerar")} className={`rdo-seg ${aba === "gerar" ? "active" : ""}`}>Gerar relatório</button>
+      </div>
+
+      {aba === "gerenciar" && <GerenciarFotos obra={obra} obraConfig={obraConfig} />}
+
+      {aba === "gerar" && (
+        <div>
+          <style>{FOTO_STYLE}</style>
+          <div className="no-print flex items-center gap-3 mb-5 flex-wrap">
+            <input type="month" value={mes} onChange={(e) => setMes(e.target.value)} className="rdo-input px-3 py-2 text-sm mono" />
+            <button onClick={() => window.print()} disabled={fotos.length === 0} className="rdo-btn-primary px-3.5 py-2 text-sm">🖨 Imprimir / salvar PDF</button>
+            <span className="text-xs" style={{ color: "var(--ink-soft)" }}>{mesNome} de {ano} · {fotos.length} foto(s)</span>
+          </div>
+
+          {loading && <div className="flex items-center gap-2 text-sm py-8 justify-center" style={{ color: "var(--ink-soft)" }}><Spin /> Montando...</div>}
+          {!loading && fotos.length === 0 && <div className="rdo-card p-8"><EmptyState title="Sem fotos neste mês" subtitle="Cadastre fotos na aba 'Gerenciar fotos' para gerar o relatório." /></div>}
+
+          {!loading && fotos.length > 0 && (
+            <div className="fotorel">
+              <div className="titulo-rel">RELATÓRIO FOTOGRÁFICO MENSAL</div>
+              <table style={{ marginTop: -1 }}>
+                <tbody>
+                  <tr><td className="cab-lbl">IMÓVEL PÚBLICO:</td><td>{fc.imovel}</td></tr>
+                  <tr><td className="cab-lbl">DEMANDANTE (Secretaria):</td><td>{fc.demandante}</td></tr>
+                  <tr><td className="cab-lbl">ENDEREÇO:</td><td>{fc.endereco}</td></tr>
+                  <tr><td className="cab-lbl">EMPRESA CONTRATADA:</td><td>{fc.empresa}</td></tr>
+                  <tr><td className="cab-lbl">RESPONSÁVEL TÉCNICO:</td><td>{fc.respTecnico}</td></tr>
+                  <tr><td className="cab-lbl">CREA:</td><td>{fc.crea}</td></tr>
+                </tbody>
+              </table>
+
+              <table style={{ marginTop: -1 }}>
+                <tbody>
+                  <tr><td>
+                    {GRUPOS_SERVICO.filter((g) => resumoPorGrupo[g]).map((g) => (
+                      <div key={g}>
+                        <div className="grupo-tit">{g}</div>
+                        <div className="grupo-desc">{Array.from(resumoPorGrupo[g]).join(", ")}</div>
+                      </div>
+                    ))}
+                  </td></tr>
+                </tbody>
+              </table>
+
+              <div style={{ marginTop: 8 }}>
+                {fotos.map((f, i) => (
+                  <div key={f.key} className="foto-bloco">
+                    <div className="foto-img"><img src={f.imagem} alt="" /></div>
+                    <div className="foto-info">
+                      <div className="foto-num">Foto {String(i + 1).padStart(2, "0")}</div>
+                      <div><span className="lbl">Local:</span> {f.local}</div>
+                      <div style={{ marginTop: 6 }}><span className="lbl">Serviço:</span> {f.servico}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ---------- Relatório Mensal ----------
 
 // ---------- Relatório Mensal (padrão oficial, tabela) ----------
+
 
 const RDO_STYLE = `
   .rdo-oficial { width: 100%; max-width: 900px; margin: 0 auto; background: white; }
@@ -942,7 +1243,7 @@ function RdoDiaOficial({ entry, obraConfig, obra, prazo }) {
       <table>
         <tbody>
           <tr>
-            <td rowSpan={4} style={{ width: "18%" }} className="center">
+            <td rowSpan={3} style={{ width: "18%" }} className="center">
               <img src="logo.png" alt="Logo" style={{ maxWidth: "90%", maxHeight: 70, height: "auto" }} />
             </td>
             <td colSpan={4} rowSpan={2} className="titulo">RELATÓRIO DIÁRIO DE OBRA</td>
@@ -956,12 +1257,14 @@ function RdoDiaOficial({ entry, obraConfig, obra, prazo }) {
           <tr>
             <td className="lbl center">Contratado</td>
             <td className="lbl center">Contrato Número</td>
-            <td colSpan={4} className="lbl center">Nome Obra</td>
+            <td colSpan={2} className="lbl center">Nome Obra</td>
+            <td colSpan={2} className="center" style={{ fontWeight: "bold" }}>{obra.nome}</td>
           </tr>
           <tr>
             <td>{obraConfig.contratado}</td>
-            <td>{obraConfig.numeroContrato}</td>
-            <td colSpan={4} className="center" style={{ fontWeight: "bold" }}>{obra.nome}</td>
+            <td colSpan={2}>{obraConfig.numeroContrato}</td>
+            <td colSpan={2}></td>
+            <td colSpan={2}></td>
           </tr>
         </tbody>
       </table>
